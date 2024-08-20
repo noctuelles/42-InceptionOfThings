@@ -18,7 +18,7 @@ Vagrant.configure("2") do |config|
       libvirt.description = "K3S Server"
     end
 
-    config.vm.provision "shell", path: "bootstrap_server.sh"
+    config.vm.provision "shell", path: "scripts/bootstrap_server.sh"
   end
 
   config.vm.define "plouvelSW" do |serv_worker|
@@ -32,6 +32,6 @@ Vagrant.configure("2") do |config|
       libvirt.description = "K3S Agent"
     end
 
-    config.vm.provision "shell", path: "bootstrap_server_worker.sh"
+    config.vm.provision "shell", path: "scripts/bootstrap_worker.sh"
   end
 end
