@@ -18,20 +18,20 @@ Vagrant.configure("2") do |config|
       libvirt.description = "K3S Server"
     end
 
-    config.vm.provision "shell", path: "scripts/bootstrap_server.sh"
+    serv.vm.provision "shell", path: "scripts/bootstrap_server.sh"
   end
 
-  config.vm.define "plouvelSW" do |serv_worker|
-    serv_worker.vm.hostname = "plouvelSW"
-    serv_worker.vm.network "private_network", ip: "192.168.56.111"
+  config.vm.define "plouvelSW" do |worker|
+    worker.vm.hostname = "plouvelSW"
+    worker.vm.network "private_network", ip: "192.168.56.111"
 
-    serv_worker.vm.provider "libvirt" do |libvirt|
+    worker.vm.provider "libvirt" do |libvirt|
       libvirt.cpus = 2
       libvirt.memory = 1024
       libvirt.title = "plouvelSW"
       libvirt.description = "K3S Agent"
     end
 
-    config.vm.provision "shell", path: "scripts/bootstrap_worker.sh"
+    worker.vm.provision "shell", path: "scripts/bootstrap_worker.sh"
   end
 end
