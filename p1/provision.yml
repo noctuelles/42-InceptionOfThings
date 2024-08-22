@@ -23,16 +23,30 @@
 
 - name: Setup K3S Master Node
   hosts: master
+  gather_facts: true
+  become: true
   tasks:
     - name: Install K3S
       become: false
       ansible.builtin.shell:
-        cmd: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --token mypassword --write-kubeconfig-mode 644" sh -s -
+        cmd: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --write-kubeconfig-mode 644" sh -s -
 
 - name: Setup K3S Worker Node
   hosts: worker
+  become: true
+  gather_facts: true
   tasks:
+    - name: Wait for node token
+      delegate_to: plouvelS
+      ansible.builtin.wait_for:
+        path: /var/lib/rancher/k3s/server/node-token
+        state: present
+    - name: Slurp node token
+      delegate_to: plouvelS
+      register: node_token
+      ansible.builtin.slurp:
+        src: /var/lib/rancher/k3s/server/node-token
     - name: Install K3S
       become: false
       ansible.builtin.shell:
-        cmd: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="agent --server https://192.168.56.110:6443 --token mypassword" sh -s -
+        cmd: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="agent --server https://192.168.56.110:6443 --token {{ node_token.content | b64decode | trim }}" sh -s -
