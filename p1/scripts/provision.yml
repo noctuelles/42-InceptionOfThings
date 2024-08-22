@@ -29,7 +29,7 @@
     - name: Install K3S
       become: false
       ansible.builtin.shell:
-        cmd: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --write-kubeconfig-mode 644" sh -s -
+        cmd: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --write-kubeconfig-mode 644 --flannel-iface eth1" sh -s -
 
 - name: Setup K3S Worker Node
   hosts: worker
@@ -49,4 +49,4 @@
     - name: Install K3S
       become: false
       ansible.builtin.shell:
-        cmd: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="agent --server https://192.168.56.110:6443 --token {{ node_token.content | b64decode | trim }}" sh -s -
+        cmd: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="agent --server https://192.168.56.110:6443 --flannel-iface eth1 --token {{ node_token.content | b64decode | trim }}" sh -s -

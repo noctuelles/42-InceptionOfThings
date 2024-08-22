@@ -49,15 +49,6 @@
       ansible.builtin.copy:
         src: deployment.yml
         dest: /home/vagrant/deployment.yml
-    - name: Create Namespace
-      kubernetes.core.k8s:
-        state: present
-        kubeconfig: /etc/rancher/k3s/k3s.yaml
-        definition:
-          apiVersion: v1
-          kind: Namespace
-          metadata:
-            name: iot
     - name: Create Deployment
       kubernetes.core.k8s:
         state: present
