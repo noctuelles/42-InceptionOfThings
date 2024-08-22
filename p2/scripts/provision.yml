@@ -23,9 +23,43 @@
 
 - name: Setup K3S Master Node
   hosts: all
+  vars:
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
   gather_facts: true
   tasks:
     - name: Install K3S
       become: false
       ansible.builtin.shell:
-        cmd: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --write-kubeconfig-mode 644" sh -s -
+        cmd: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --write-kubeconfig-mode 644 --flannel-iface eth1" sh -s -
+    - name: Install pip
+      become: true
+      ansible.builtin.apt:
+        name: python3-pip
+        update_cache: true
+        state: present
+    - name: Install prerequisites
+      ansible.builtin.pip:
+        name:
+          - openshift
+          - pyyaml
+          - kubernetes
+        break_system_packages: true
+        state: present
+    - name: Copy deployment file
+      ansible.builtin.copy:
+        src: deployment.yml
+        dest: /home/vagrant/deployment.yml
+    - name: Create Namespace
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: /etc/rancher/k3s/k3s.yaml
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: iot
+    - name: Create Deployment
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: /etc/rancher/k3s/k3s.yaml
+        src: /home/vagrant/deployment.yml
