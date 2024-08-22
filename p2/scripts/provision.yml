@@ -1,0 +1,31 @@
+- name: Fix DNS failure on Debian 12 at 42
+  hosts: all
+  tasks:
+    - name: Install resolvconf, if not present
+      ansible.builtin.apt:
+        name: resolvconf
+        state: present
+    - name: Start resolvconf, if not started
+      ansible.builtin.service:
+        name: resolvconf
+        state: started
+    - name: Update resolvconf head
+      become: true
+      ansible.builtin.lineinfile:
+        path: /etc/resolvconf/resolv.conf.d/head
+        line: nameserver 8.8.8.8
+        insertafter: EOF
+        state: present
+    - name: Update resolvconf
+      become: true
+      ansible.builtin.shell:
+        cmd: resolvconf -u
+
+- name: Setup K3S Master Node
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Install K3S
+      become: false
+      ansible.builtin.shell:
+        cmd: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --write-kubeconfig-mode 644" sh -s -
