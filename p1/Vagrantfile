@@ -1,50 +1,35 @@
 Vagrant.configure("2") do |config|
-  # The most common configuration options are documented and commented below.
-  # For a complete reference, please see the online documentation at
-  # https://docs.vagrantup.com.
-
-  # Every Vagrant development environment requires a box. You can search for
-  # boxes at https://vagrantcloud.com/search.
   config.vm.box = "generic/debian12"
 
-  config.vm.define "plouvelS" do |serv|
-    serv.vm.hostname = "plouvelS"
-    serv.vm.network "private_network", ip: "192.168.56.110"
+  def configure_vm(vm, name, ip, description)
+    vm.vm.hostname = name
+    vm.vm.network "private_network", ip: ip
 
-    serv.vm.provider "libvirt" do |libvirt|
+    vm.vm.provider "libvirt" do |libvirt|
       libvirt.cpus = 2
       libvirt.memory = 1024
-      libvirt.title = "plouvelS"
-      libvirt.description = "K3S Server"
+      libvirt.title = name
+      libvirt.description = description
     end
 
-    serv.vm.provision "ansible" do |ansible|
-        ansible.verbose = "v"
-        ansible.playbook = "scripts/provision.yml"
-        ansible.groups = {
-          "master" => ["plouvelS"],
-          "worker" => ["plouvelSW"]
+    vm.vm.provision "ansible" do |ansible|
+      ansible.verbose = "v"
+      ansible.playbook = "scripts/provision.yml"
+      ansible.groups = {
+        "master" => ["plouvelS"],
+        "worker" => ["plouvelSW"],
+        "all:vars" => {
+          "ansible_python_interpreter" => "/usr/bin/python3"
         }
+      }
     end
   end
 
-  config.vm.define "plouvelSW" do |worker|
-    worker.vm.hostname = "plouvelSW"
-    worker.vm.network "private_network", ip: "192.168.56.111"
+  config.vm.define "plouvelS" do |serv|
+    configure_vm(serv, "plouvelS", "192.168.56.110", "K3S Server")
+  end
 
-    worker.vm.provider "libvirt" do |libvirt|
-      libvirt.cpus = 2
-      libvirt.memory = 1024
-      libvirt.title = "plouvelSW"
-      libvirt.description = "K3S Agent"
-    end
-    worker.vm.provision "ansible" do |ansible|
-        ansible.verbose = "v"
-        ansible.playbook = "scripts/provision.yml"
-        ansible.groups = {
-          "master" => ["plouvelS"],
-          "worker" => ["plouvelSW"]
-        }
-    end
+  config.vm.define "plouvelSW" do |worker|
+    configure_vm(worker, "plouvelSW", "192.168.56.111", "K3S Agent")
   end
 end
