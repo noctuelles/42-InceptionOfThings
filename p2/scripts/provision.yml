@@ -27,17 +27,20 @@
     kubeconfig: /etc/rancher/k3s/k3s.yaml
   gather_facts: true
   tasks:
-    - name: Install K3S
+    - name: Get services facts
+      ansible.builtin.service_facts:
+    - name: Install K3S, if not installed
       become: false
       ansible.builtin.shell:
         cmd: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server --write-kubeconfig-mode 644 --flannel-iface eth1" sh -s -
+      when: ansible_facts.services['k3s.service'] is not defined
     - name: Install pip
       become: true
       ansible.builtin.apt:
         name: python3-pip
         update_cache: true
         state: present
-    - name: Install prerequisites
+    - name: Install ansible K8S module prerequisites
       ansible.builtin.pip:
         name:
           - openshift
@@ -45,12 +48,22 @@
           - kubernetes
         break_system_packages: true
         state: present
-    - name: Copy deployment file
+    - name: Copy configurations
       ansible.builtin.copy:
-        src: deployment.yml
-        dest: /home/vagrant/deployment.yml
-    - name: Create Deployment
+        src: ../confs
+        dest: /home/vagrant/confs
+    - name: Apply deployments
       kubernetes.core.k8s:
         state: present
         kubeconfig: /etc/rancher/k3s/k3s.yaml
-        src: /home/vagrant/deployment.yml
+        src: /home/vagrant/confs/deployments.yaml
+    - name: Apply services
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: /etc/rancher/k3s/k3s.yaml
+        src: /home/vagrant/confs/services.yaml
+    - name: Apply ingress
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: /etc/rancher/k3s/k3s.yaml
+        src: /home/vagrant/confs/ingress.yaml
