@@ -18,7 +18,7 @@
         state: present
     - name: Update resolvconf
       become: true
-      ansible.builtin.shell:
+      ansible.builtin.command:
         cmd: resolvconf -u
 
 - name: Setup K3S Master Node
@@ -51,19 +51,22 @@
     - name: Copy configurations
       ansible.builtin.copy:
         src: ../confs
-        dest: /home/vagrant/confs
+        dest: /home/vagrant
+        owner: vagrant
+        group: vagrant
+        mode: "0755"
     - name: Apply deployments
       kubernetes.core.k8s:
         state: present
         kubeconfig: /etc/rancher/k3s/k3s.yaml
-        src: /home/vagrant/confs/deployments.yaml
+        src: /home/vagrant/confs/deployments.yml
     - name: Apply services
       kubernetes.core.k8s:
         state: present
         kubeconfig: /etc/rancher/k3s/k3s.yaml
-        src: /home/vagrant/confs/services.yaml
+        src: /home/vagrant/confs/services.yml
     - name: Apply ingress
       kubernetes.core.k8s:
         state: present
         kubeconfig: /etc/rancher/k3s/k3s.yaml
-        src: /home/vagrant/confs/ingress.yaml
+        src: /home/vagrant/confs/ingress.yml
