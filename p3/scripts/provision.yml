@@ -56,8 +56,7 @@
   hosts: localhost
   connection: local
   tags: kubectl
-  vars:
-    kubectl_version: "v1.31.2"
+  gather_facts: false
   tasks:
     - name: Install kubectl Prerequisites
       ansible.builtin.apt:
@@ -97,3 +96,20 @@
         name: kubectl
         update_cache: true
         state: present
+
+- name: Install K3D
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tags: k3d
+  tasks:
+    - name: Get K3D Install Script
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh
+        dest: /tmp/k3d-install.sh
+        mode: a+r
+    - name: Install K3D
+      ansible.builtin.command:
+        cmd: /bin/bash /tmp/k3d-install.sh
+        creates: /usr/local/bin/k3d
