@@ -1,4 +1,5 @@
 - name: Fix DNS failure on Debian 12 at 42
+  gather_facts: true
   hosts: all
   tasks:
     - name: Install resolvconf, if not present
@@ -43,14 +44,14 @@
       when: ansible_facts.services['k3s.service'] is not defined
       ansible.builtin.command:
         cmd: /tmp/install-k3s.sh server --write-kubeconfig-mode 644 --flannel-iface eth1
-        creates: /etc/rancher/k3s/k3s.yaml
+        creates: "{{ kubeconfig }}"
     - name: Install pip
       become: true
       ansible.builtin.apt:
         name: python3-pip
         update_cache: true
         state: present
-    - name: Install ansible K8S module prerequisites
+    - name: Install Ansible K8S module prerequisites
       ansible.builtin.pip:
         name:
           - openshift
@@ -65,18 +66,18 @@
         owner: vagrant
         group: vagrant
         mode: "0755"
-    - name: Apply deployments
+    - name: Apply Deployments
       kubernetes.core.k8s:
         state: present
-        kubeconfig: /etc/rancher/k3s/k3s.yaml
+        kubeconfig: "{{ kubeconfig }}"
         src: /home/vagrant/confs/deployments.yml
-    - name: Apply services
+    - name: Apply Services
       kubernetes.core.k8s:
         state: present
-        kubeconfig: /etc/rancher/k3s/k3s.yaml
+        kubeconfig: "{{ kubeconfig }}"
         src: /home/vagrant/confs/services.yml
-    - name: Apply ingress
+    - name: Apply Ingress
       kubernetes.core.k8s:
         state: present
-        kubeconfig: /etc/rancher/k3s/k3s.yaml
+        kubeconfig: "{{ kubeconfig }}"
         src: /home/vagrant/confs/ingress.yml
