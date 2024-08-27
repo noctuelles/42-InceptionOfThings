@@ -13,3 +13,6 @@ data:
   server.basehref: "/argo-cd/"
   # Used if Argo CD is running behind reverse proxy under subpath different from /
   server.rootpath: "/argo-cd"
+
+  # Enable Applications in the dev namespace (https://argo-cd.readthedocs.io/en/stable/operator-manual/app-any-namespace/#change-workload-startup-parameters)
+  application.namespaces: dev
