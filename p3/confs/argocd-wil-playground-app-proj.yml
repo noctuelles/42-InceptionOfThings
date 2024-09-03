@@ -6,7 +6,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  description: Playground Project for wil's playground
+  description: Playground Project for will's playground
   sourceRepos:
   - '*' 
   destinations:
