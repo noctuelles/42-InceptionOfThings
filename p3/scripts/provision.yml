@@ -167,11 +167,6 @@
         state: present
         namespace: argocd
         src: ../confs/argocd-cmd-params-cm.yml
-    - name: Apply ArgoCD Ingress
-      kubernetes.core.k8s:
-        state: present
-        namespace: argocd
-        src: ../confs/ingress.yml
     - name: Install ArgoCD
       kubernetes.core.k8s:
         state: present
