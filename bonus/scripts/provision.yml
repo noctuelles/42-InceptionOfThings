@@ -1,0 +1,196 @@
+- name: Setup Docker
+  hosts: localhost
+  connection: local
+  tags: docker
+  become: true
+  gather_facts: true
+  vars:
+    deb_architecture: { "aarch64": "arm64", "x86_64": "amd64" } # Map architecture to Debian package architecture
+  tasks:
+    - name: Install Docker Prerequisites
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+        update_cache: true
+        state: present
+    - name: Chmod Keyrings Directory
+      ansible.builtin.file:
+        dest: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+    - name: Add Docker GPG Key
+      ansible.builtin.get_url:
+        url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+        dest: /etc/apt/keyrings/docker.asc
+        mode: a+r
+    - name: Add Docker Repository
+      ansible.builtin.apt_repository:
+        repo: >
+          deb [arch={{ deb_architecture[ansible_architecture] }} signed-by=/etc/apt/keyrings/docker.asc]
+          https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable
+        state: present
+    - name: Install Docker
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        update_cache: true
+        state: present
+    - name: Create Docker Group
+      ansible.builtin.group:
+        name: docker
+        state: present
+    - name: Add User to Docker Group
+      ansible.builtin.user:
+        name: "{{ lookup('env', 'USER') }}"
+        groups: docker
+        state: present
+        append: true
+
+- name: Setup Kubectl
+  become: true
+  hosts: localhost
+  connection: local
+  tags: kubectl
+  gather_facts: false
+  tasks:
+    - name: Install kubectl Prerequisites
+      ansible.builtin.apt:
+        name:
+          - curl
+          - ca-certificates
+          - gnupg
+          - apt-transport-https
+        update_cache: true
+        state: present
+    - name: Chmod Keyrings Directory
+      ansible.builtin.file:
+        dest: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+    - name: Add Kubernetes GPG Key
+      ansible.builtin.get_url:
+        url: https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key
+        dest: /tmp/k8s.key
+        mode: a+r
+    - name: Use GPG to dearmor key
+      ansible.builtin.command:
+        cmd: gpg -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg --dearmor /tmp/k8s.key
+        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    - name: Allow Unprivileged User to Read Keyring
+      ansible.builtin.file:
+        dest: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+        mode: "0644"
+    - name: Add Kubernetes Repository
+      ansible.builtin.apt_repository:
+        repo: >
+          deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg]
+          https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /
+        state: present
+    - name: Install kubectl
+      ansible.builtin.apt:
+        name: kubectl
+        update_cache: true
+        state: present
+
+- name: Install K3D
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tags: k3d
+  tasks:
+    - name: Get K3D Install Script
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh
+        dest: /tmp/k3d-install.sh
+        mode: a+r
+    - name: Install K3D
+      ansible.builtin.command:
+        cmd: /bin/bash /tmp/k3d-install.sh
+        creates: /usr/local/bin/k3d
+
+- name: Install ArgoCD CLI
+  hosts: localhost
+  connection: local
+  tags: argocd-cli
+  gather_facts: false
+  tasks:
+    - name: Get ArgoCD CLI
+      ansible.builtin.get_url:
+        url: https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+        dest: /tmp/argocd-linux-amd64
+        mode: a+r
+    - name: Install ArgoCD CLI
+      become: true
+      ansible.builtin.command:
+        cmd: install -m 555 /tmp/argocd-linux-amd64 /usr/local/bin/argocd
+        creates: /usr/local/bin/argocd
+
+- name: Create and configure K8S Cluster with K3D
+  hosts: localhost
+  connection: local
+  tags: cluster-config
+  gather_facts: false
+  vars:
+    cluster_agents_nbr: 2
+    cluster_name: "iot-p3"
+  tasks:
+    - name: List Existing Clusters
+      ansible.builtin.command:
+        cmd: k3d cluster list -o json
+      register: k3d_clusters
+      changed_when: false
+    - name: Create Cluster
+      ansible.builtin.command:
+        cmd: "k3d cluster create {{ cluster_name }} --agents {{ cluster_agents_nbr }}"
+      changed_when: false
+      when: "cluster_name not in k3d_clusters.stdout"
+    - name: Create argocd namespace
+      kubernetes.core.k8s:
+        state: present
+        api_version: v1
+        kind: Namespace
+        name: argocd
+    - name: Create dev namespace
+      kubernetes.core.k8s:
+        state: present
+        api_version: v1
+        kind: Namespace
+        name: dev
+    - name: Apply ArgoCD cmd-params ConfigMap
+      kubernetes.core.k8s:
+        state: present
+        namespace: argocd
+        src: ../confs/argocd-cmd-params-cm.yml
+    - name: Install ArgoCD
+      kubernetes.core.k8s:
+        state: present
+        namespace: argocd
+        src: https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+    - name: Wait for K8S to finish ArgoCD deployment
+      ansible.builtin.command:
+        cmd: kubectl rollout status deployment -n argocd --timeout 20m
+      changed_when: false
+    - name: Apply ArgoCD App Project
+      kubernetes.core.k8s:
+        state: present
+        namespace: argocd
+        src: ../confs/argocd-iot-pong-app-proj.yml
+    - name: Apply ArgoCD App
+      kubernetes.core.k8s:
+        state: present
+        namespace: argocd
+        src: ../confs/argocd-iot-pong-app.yml
+    - name: Get ArgoCD initial password
+      ansible.builtin.command:
+        cmd: argocd admin initial-password -n argocd
+      register: argocd_admin_passwd
+      changed_when: false
+    - name: Print ArgoCD admin initial password
+      ansible.builtin.debug:
+        msg: "You can connect to ArgoCD with the username 'admin' and password '{{ argocd_admin_passwd.stdout_lines[0] }}'"
