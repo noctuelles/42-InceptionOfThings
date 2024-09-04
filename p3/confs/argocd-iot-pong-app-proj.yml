@@ -1,12 +1,12 @@
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: playground-proj
+  name: iot-pong-proj
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  description: Playground Project for will's playground
+  description: The mightful iot-pong
   sourceRepos:
   - '*' 
   destinations:

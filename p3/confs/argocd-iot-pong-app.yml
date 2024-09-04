@@ -1,16 +1,16 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: wil-playground-app
+  name: iot-pong-app 
   namespace: argocd
   labels:
-    name: wil-playground-app
+    name: iot-pong-app
 spec:
-  project: playground-proj
+  project: iot-pong-proj
   source:
-    repoURL: https://github.com/noctuelles/42-InceptionOfThings-GitOps-plouvel.git
-    targetRevision: v2
-    path: wil-playground-app
+    repoURL: https://github.com/noctuelles/42-IoT-Pong-plouvel.git
+    targetRevision: HEAD 
+    path: deployment
   destination:
     server: https://kubernetes.default.svc
     namespace: dev
