@@ -1,4 +1,4 @@
-- name: Setup Docker
+- name: Install Docker
   hosts: localhost
   connection: local
   tags: docker
@@ -51,7 +51,7 @@
         state: present
         append: true
 
-- name: Setup Kubectl
+- name: Install Kubectl
   become: true
   hosts: localhost
   connection: local
@@ -131,14 +131,14 @@
         cmd: install -m 555 /tmp/argocd-linux-amd64 /usr/local/bin/argocd
         creates: /usr/local/bin/argocd
 
-- name: Create and configure K8S Cluster with K3D
+- name: Setup Cluster
   hosts: localhost
   connection: local
-  tags: cluster-config
+  tags: cluster
   gather_facts: false
   vars:
     cluster_agents_nbr: 2
-    cluster_name: "iot-p3"
+    cluster_name: "iot-bonus"
   tasks:
     - name: List Existing Clusters
       ansible.builtin.command:
@@ -147,7 +147,7 @@
       changed_when: false
     - name: Create Cluster
       ansible.builtin.command:
-        cmd: "k3d cluster create {{ cluster_name }} --agents {{ cluster_agents_nbr }}"
+        cmd: "k3d cluster create {{ cluster_name }} --port 8080:80@loadbalancer --port 4443:443@loadbalancer"
       changed_when: false
       when: "cluster_name not in k3d_clusters.stdout"
     - name: Create argocd namespace
@@ -162,6 +162,13 @@
         api_version: v1
         kind: Namespace
         name: dev
+
+- name: Install and configure ArgoCD
+  hosts: localhost
+  connection: local
+  tags: argocd
+  gather_facts: false
+  tasks:
     - name: Apply ArgoCD cmd-params ConfigMap
       kubernetes.core.k8s:
         state: present
@@ -176,6 +183,11 @@
       ansible.builtin.command:
         cmd: kubectl rollout status deployment -n argocd --timeout 20m
       changed_when: false
+    - name: Apply ArgoCD Ingress
+      kubernetes.core.k8s:
+        state: present
+        namespace: argocd
+        src: ../confs/argocd-ingress.yml
     - name: Apply ArgoCD App Project
       kubernetes.core.k8s:
         state: present

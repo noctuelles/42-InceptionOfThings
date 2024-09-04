@@ -1,4 +1,4 @@
-- name: Setup Docker
+- name: Install Docker
   hosts: localhost
   connection: local
   tags: docker
@@ -51,7 +51,7 @@
         state: present
         append: true
 
-- name: Setup Kubectl
+- name: Install Kubectl
   become: true
   hosts: localhost
   connection: local
@@ -131,10 +131,44 @@
         cmd: install -m 555 /tmp/argocd-linux-amd64 /usr/local/bin/argocd
         creates: /usr/local/bin/argocd
 
-- name: Create and configure K8S Cluster with K3D
+- name: Install Helm CLI
   hosts: localhost
   connection: local
-  tags: cluster-config
+  become: true
+  tags: helm-cli
+  gather_facts: false
+  tasks:
+    - name: Install Helm Prerequisites
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+        update_cache: true
+        state: present
+    - name: Add Helm Key
+      ansible.builtin.get_url:
+        url: https://baltocdn.com/helm/signing.asc
+        dest: /tmp/helm.key
+        mode: a+r
+    - name: Use GPG to dearmor key
+      ansible.builtin.command:
+        cmd: gpg -o /usr/share/keyrings/helm.gpg --dearmor /tmp/helm.key
+        creates: /usr/share/keyrings/helm.gpg
+    - name: Add Helm Repository
+      ansible.builtin.apt_repository:
+        repo: >
+          deb [arch=amd64 signed-by=/usr/share/keyrings/helm.gpg]
+          https://baltocdn.com/helm/stable/debian/ all main /
+        state: present
+    - name: Install Helm
+      ansible.builtin.apt:
+        name: helm
+        update_cache: true
+        state: present
+
+- name: Setup Cluster
+  hosts: localhost
+  connection: local
+  tags: cluster
   gather_facts: false
   vars:
     cluster_agents_nbr: 2
@@ -147,7 +181,7 @@
       changed_when: false
     - name: Create Cluster
       ansible.builtin.command:
-        cmd: "k3d cluster create {{ cluster_name }} --agents {{ cluster_agents_nbr }}"
+        cmd: "k3d cluster create {{ cluster_name }} --port 8080:80@loadbalancer --port 4443:443@loadbalancer"
       changed_when: false
       when: "cluster_name not in k3d_clusters.stdout"
     - name: Create argocd namespace
@@ -162,6 +196,19 @@
         api_version: v1
         kind: Namespace
         name: dev
+    - name: Create gitlab namespace
+      kubernetes.core.k8s:
+        state: present
+        api_version: v1
+        kind: Namespace
+        name: gitlab
+
+- name: Install and configure ArgoCD
+  hosts: localhost
+  connection: local
+  tags: argocd
+  gather_facts: false
+  tasks:
     - name: Apply ArgoCD cmd-params ConfigMap
       kubernetes.core.k8s:
         state: present
@@ -176,6 +223,11 @@
       ansible.builtin.command:
         cmd: kubectl rollout status deployment -n argocd --timeout 20m
       changed_when: false
+    - name: Apply ArgoCD Ingress
+      kubernetes.core.k8s:
+        state: present
+        namespace: argocd
+        src: ../confs/argocd-ingress.yml
     - name: Apply ArgoCD App Project
       kubernetes.core.k8s:
         state: present
