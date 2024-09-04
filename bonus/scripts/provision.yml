@@ -138,7 +138,7 @@
   gather_facts: false
   vars:
     cluster_agents_nbr: 2
-    cluster_name: "iot-p3"
+    cluster_name: "iot-bonus"
   tasks:
     - name: List Existing Clusters
       ansible.builtin.command:
