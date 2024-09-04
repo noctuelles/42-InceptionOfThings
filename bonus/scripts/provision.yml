@@ -181,7 +181,7 @@
       changed_when: false
     - name: Create Cluster
       ansible.builtin.command:
-        cmd: "k3d cluster create {{ cluster_name }} --port 8080:80@loadbalancer --port 4443:443@loadbalancer"
+        cmd: "k3d cluster create {{ cluster_name }} --port 8080:80@loadbalancer --port 4443:443@loadbalancer --agents 1"
       changed_when: false
       when: "cluster_name not in k3d_clusters.stdout"
     - name: Create argocd namespace
