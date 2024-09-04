@@ -10,9 +10,9 @@ data:
   # Run server without TLS
   server.insecure: "true"
   # Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from / (default "/")
-  server.basehref: "/argo-cd/"
+  server.basehref: "/argocd/"
   # Used if Argo CD is running behind reverse proxy under subpath different from /
-  server.rootpath: "/argo-cd"
+  server.rootpath: "/argocd"
 
   # Enable Applications in the dev namespace (https://argo-cd.readthedocs.io/en/stable/operator-manual/app-any-namespace/#change-workload-startup-parameters)
   application.namespaces: dev
