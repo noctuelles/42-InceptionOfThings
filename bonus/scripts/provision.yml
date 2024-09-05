@@ -1,9 +1,8 @@
 - name: Install Docker
-  hosts: localhost
-  connection: local
+  hosts: all
   tags: docker
-  become: true
   gather_facts: true
+  become: true
   vars:
     deb_architecture: { "aarch64": "arm64", "x86_64": "amd64" } # Map architecture to Debian package architecture
   tasks:
@@ -46,15 +45,25 @@
         state: present
     - name: Add User to Docker Group
       ansible.builtin.user:
-        name: "{{ lookup('env', 'USER') }}"
+        name: "{{ ansible_user }}"
         groups: docker
         state: present
         append: true
+    - name: Enable and start Docker services
+      become: false
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      loop:
+        - docker.service
+        - containerd.service
+    - name: Reset SSH connection to allow user changes to affect Ansible user
+      ansible.builtin.meta: reset_connection
 
 - name: Install Kubectl
   become: true
-  hosts: localhost
-  connection: local
+  hosts: all
   tags: kubectl
   gather_facts: false
   tasks:
@@ -98,8 +107,7 @@
         state: present
 
 - name: Install K3D
-  hosts: localhost
-  connection: local
+  hosts: all
   gather_facts: false
   become: false
   tags: k3d
@@ -115,8 +123,7 @@
         creates: /usr/local/bin/k3d
 
 - name: Install ArgoCD CLI
-  hosts: localhost
-  connection: local
+  hosts: all
   tags: argocd-cli
   gather_facts: false
   tasks:
@@ -132,8 +139,7 @@
         creates: /usr/local/bin/argocd
 
 - name: Setup Cluster
-  hosts: localhost
-  connection: local
+  hosts: all
   tags: cluster
   gather_facts: false
   vars:
@@ -147,9 +153,24 @@
       changed_when: false
     - name: Create Cluster
       ansible.builtin.command:
-        cmd: "k3d cluster create {{ cluster_name }} --port 8080:80@loadbalancer --port 4443:443@loadbalancer --agents 1"
+        cmd: "k3d cluster create {{ cluster_name }} --port 9898:80@loadbalancer --agents 1"
       changed_when: false
       when: "cluster_name not in k3d_clusters.stdout"
+    - name: Install pip
+      become: true
+      ansible.builtin.apt:
+        name: python3-pip
+        update_cache: true
+        state: present
+    - name: Install Ansible K8S module prerequisites
+      become: true
+      ansible.builtin.pip:
+        name:
+          - openshift
+          - pyyaml
+          - kubernetes
+        break_system_packages: true
+        state: present
     - name: Create argocd namespace
       kubernetes.core.k8s:
         state: present
@@ -170,16 +191,22 @@
         name: gitlab
 
 - name: Install and configure ArgoCD
-  hosts: localhost
-  connection: local
+  hosts: all
   tags: argocd
   gather_facts: false
   tasks:
+    - name: Copy configurations
+      ansible.builtin.copy:
+        src: ../confs
+        dest: "/home/{{ ansible_user }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: "0755"
     - name: Apply ArgoCD cmd-params ConfigMap
       kubernetes.core.k8s:
         state: present
         namespace: argocd
-        src: ../confs/argocd-cmd-params-cm.yml
+        src: ./confs/argocd-cmd-params-cm.yml
     - name: Install ArgoCD
       kubernetes.core.k8s:
         state: present
@@ -193,17 +220,17 @@
       kubernetes.core.k8s:
         state: present
         namespace: argocd
-        src: ../confs/argocd-ingress.yml
+        src: ./confs/argocd-ingress.yml
     - name: Apply ArgoCD App Project
       kubernetes.core.k8s:
         state: present
         namespace: argocd
-        src: ../confs/argocd-iot-pong-app-proj.yml
+        src: ./confs/argocd-iot-pong-app-proj.yml
     - name: Apply ArgoCD App
       kubernetes.core.k8s:
         state: present
         namespace: argocd
-        src: ../confs/argocd-iot-pong-app.yml
+        src: ./confs/argocd-iot-pong-app.yml
     - name: Get ArgoCD initial password
       ansible.builtin.command:
         cmd: argocd admin initial-password -n argocd
@@ -212,3 +239,40 @@
     - name: Print ArgoCD admin initial password
       ansible.builtin.debug:
         msg: "You can connect to ArgoCD with the username 'admin' and password '{{ argocd_admin_passwd.stdout_lines[0] }}'"
+
+- name: Install and Configure Gitlab
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Install Prerequisites
+      become: true
+      ansible.builtin.apt:
+        name:
+          - curl
+          - openssh-server
+          - ca-certificates
+          - perl
+        update_cache: true
+        state: present
+    - name: Fetch Debian Script
+      ansible.builtin.get_url:
+        url: "https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.deb.sh"
+        dest: /tmp/gitlab-ce-deb.sh
+        mode: a+r
+    - name: Run Debian Script
+      become: true
+      ansible.builtin.command:
+        cmd: /bin/bash /tmp/gitlab-ce-deb.sh
+        creates: /etc/apt/sources.list.d/gitlab_gitlab-ce.list
+    - name: Install Gitlab-CE
+      # For more informations, see : https://docs.gitlab.com/omnibus/settings/configuration.html
+      become: true
+      environment:
+        EXTERNAL_URL: "{{ gitlab_external_url }}"
+        # https://docs.gitlab.com/omnibus/installation/index.html#set-up-the-initial-account
+        GITLAB_ROOT_EMAIL: "{{ gitlab_root_email }}"
+        GITLAB_ROOT_PASSWORD: "{{ gitlab_root_password }}"
+      ansible.builtin.apt:
+        name: gitlab-ce
+        update_cache: true
+        state: present

@@ -1,8 +1,6 @@
 all:
-	vagrant up && \
-	ansible-playbook scripts/local.yml -i scripts/inventory.yml
+	vagrant up --provision
 clean:
-	vagrant destroy -f && \
-	k3d cluster delete iot-bonus
+	vagrant destroy -f
 
 .PHONY: all clean

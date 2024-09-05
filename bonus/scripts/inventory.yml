@@ -1,6 +1,0 @@
-localhost:
-  hosts:
-    127.0.0.1
-  vars:
-    ansible_sudo_pass: 123456
-    ansible_python_interpreter: auto_silent
