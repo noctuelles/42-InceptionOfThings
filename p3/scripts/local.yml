@@ -50,6 +50,11 @@
         groups: docker
         state: present
         append: true
+    - name: Execute newgrp to apply group changes
+      become: false
+      ansible.builtin.command:
+        cmd: newgrp docker
+      changed_when: false
 
 - name: Install Kubectl
   become: true
