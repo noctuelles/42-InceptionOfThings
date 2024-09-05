@@ -131,40 +131,6 @@
         cmd: install -m 555 /tmp/argocd-linux-amd64 /usr/local/bin/argocd
         creates: /usr/local/bin/argocd
 
-- name: Install Helm CLI
-  hosts: localhost
-  connection: local
-  become: true
-  tags: helm-cli
-  gather_facts: false
-  tasks:
-    - name: Install Helm Prerequisites
-      ansible.builtin.apt:
-        name:
-          - apt-transport-https
-        update_cache: true
-        state: present
-    - name: Add Helm Key
-      ansible.builtin.get_url:
-        url: https://baltocdn.com/helm/signing.asc
-        dest: /tmp/helm.key
-        mode: a+r
-    - name: Use GPG to dearmor key
-      ansible.builtin.command:
-        cmd: gpg -o /usr/share/keyrings/helm.gpg --dearmor /tmp/helm.key
-        creates: /usr/share/keyrings/helm.gpg
-    - name: Add Helm Repository
-      ansible.builtin.apt_repository:
-        repo: >
-          deb [arch=amd64 signed-by=/usr/share/keyrings/helm.gpg]
-          https://baltocdn.com/helm/stable/debian/ all main /
-        state: present
-    - name: Install Helm
-      ansible.builtin.apt:
-        name: helm
-        update_cache: true
-        state: present
-
 - name: Setup Cluster
   hosts: localhost
   connection: local

@@ -1,0 +1,41 @@
+# https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html#create-a-personal-access-token-programmatically
+# https://docs.gitlab.com/ee/api/rest/
+# https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/auth.rb
+# https://docs.gitlab.com/ee/api/projects.html#create-project
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "generic/debian12"
+  config.env.enable
+
+  config.vm.define "gitlab-ce" do |machine|
+    ip = ENV['GITLAB_IP']
+
+    machine.vm.hostname = "gitlab-ce"
+    machine.vm.network "private_network", ip: ip
+
+    gitlab_external_url = "http://#{ip}"
+    gitlab_root_email = ENV['GITLAB_ROOT_EMAIL']
+    gitlab_root_password = ENV['GITLAB_ROOT_PASSWORD']
+
+    machine.vm.provider "libvirt" do |libvirt|
+      libvirt.cpus = 6
+      libvirt.memory = 4096
+      libvirt.title = "gitlab-ce"
+      libvirt.description = "Gitlab Instance"
+    end
+
+    machine.vm.provision "ansible" do |ansible|
+        ansible.verbose = "v"
+        ansible.playbook = "scripts/gitlab.yml"
+        ansible.groups = {
+          "all:vars" => {
+            "ansible_python_interpreter" => "auto_silent",
+            "gitlab_ip" => ip,
+            "gitlab_external_url" => gitlab_external_url,
+            "gitlab_root_password" => gitlab_root_password,
+            "gitlab_root_email" => gitlab_root_email,
+          }
+        }
+    end
+  end
+end
