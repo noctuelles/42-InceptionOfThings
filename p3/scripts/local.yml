@@ -46,7 +46,7 @@
         state: present
     - name: Add User to Docker Group
       ansible.builtin.user:
-        name: "{{ lookup('env', 'USER') }}"
+        name: "{{ ansible_user }}"
         groups: docker
         state: present
         append: true
@@ -152,7 +152,7 @@
       changed_when: false
     - name: Create Cluster
       ansible.builtin.command:
-        cmd: "k3d cluster create {{ cluster_name }} --port 8080:80@loadbalancer --port 4443:443@loadbalancer"
+        cmd: "k3d cluster create {{ cluster_name }} --port 9898:80@loadbalancer"
       changed_when: false
       when: "cluster_name not in k3d_clusters.stdout"
     - name: Create argocd namespace
