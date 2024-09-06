@@ -1,6 +1,8 @@
 all:
-	vagrant up --provision
+	vagrant up
 clean:
 	vagrant destroy -f
+stop:
+	vagrant halt
 
-.PHONY: all clean
+.PHONY: all clean halt
