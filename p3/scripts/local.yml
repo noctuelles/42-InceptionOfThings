@@ -2,12 +2,12 @@
   hosts: localhost
   connection: local
   tags: docker
-  become: true
   gather_facts: true
   vars:
     deb_architecture: { "aarch64": "arm64", "x86_64": "amd64" } # Map architecture to Debian package architecture
   tasks:
     - name: Install Docker Prerequisites
+      become: true
       ansible.builtin.apt:
         name:
           - ca-certificates
@@ -15,22 +15,26 @@
         update_cache: true
         state: present
     - name: Chmod Keyrings Directory
+      become: true
       ansible.builtin.file:
         dest: /etc/apt/keyrings
         state: directory
         mode: "0755"
     - name: Add Docker GPG Key
+      become: true
       ansible.builtin.get_url:
         url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
         dest: /etc/apt/keyrings/docker.asc
         mode: a+r
     - name: Add Docker Repository
+      become: true
       ansible.builtin.apt_repository:
         repo: >
           deb [arch={{ deb_architecture[ansible_architecture] }} signed-by=/etc/apt/keyrings/docker.asc]
           https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable
         state: present
     - name: Install Docker
+      become: true
       ansible.builtin.apt:
         name:
           - docker-ce
@@ -41,17 +45,18 @@
         update_cache: true
         state: present
     - name: Create Docker Group
+      become: true
       ansible.builtin.group:
         name: docker
         state: present
     - name: Add User to Docker Group
+      become: true
       ansible.builtin.user:
-        name: "{{ ansible_user }}"
+        name: "{{ ansible_env.USER }}"
         groups: docker
         state: present
         append: true
     - name: Execute newgrp to apply group changes
-      become: false
       ansible.builtin.command:
         cmd: newgrp docker
       changed_when: false
@@ -106,7 +111,6 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  become: false
   tags: k3d
   tasks:
     - name: Get K3D Install Script
