@@ -54,9 +54,10 @@
       ansible.builtin.user:
         name: "{{ ansible_env.USER }}"
         groups: docker
-        state: present
         append: true
     - name: Execute newgrp to apply group changes
+      become: true
+      become_user: "{{ ansible_env.USER }}"
       ansible.builtin.command:
         cmd: newgrp docker
       changed_when: false
