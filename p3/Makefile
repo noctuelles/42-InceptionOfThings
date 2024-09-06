@@ -1,5 +1,5 @@
 all:
-	ansible-playbook -i scripts/inventory.yml scripts/local.yml
+	ansible-playbook -i scripts/inventory.yml scripts/provision.yml
 clean:
 	k3d cluster delete iot-p3
 stop:
