@@ -4,6 +4,8 @@ kind: Ingress
 metadata:
   name: apps
   namespace: default
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   ingressClassName: traefik
   rules:
@@ -27,13 +29,12 @@ spec:
               name: app-two
               port:
                 number: 80
-  - host: app3.com
-    http:
+  - http:
       paths:
-        - path: /
-          pathType: Prefix
-          backend:
-            service:
-              name: app-three
-              port:
-                number: 80
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: app-three 
+            port:
+              number: 80

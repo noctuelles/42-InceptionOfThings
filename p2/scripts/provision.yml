@@ -19,10 +19,11 @@
         state: present
       notify: Update resolvconf
   handlers:
-    - name: Update resolvconf # noqa no-changed-when
+    - name: Update resolvconf
       become: true
       ansible.builtin.command:
         cmd: resolvconf -u
+      changed_when: false
 
 - name: Setup K3S Master Node
   hosts: all
